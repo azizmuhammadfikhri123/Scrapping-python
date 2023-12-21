@@ -44,7 +44,7 @@ def save_to_file_json(data, file_name):
 def process_check_link(url, session):
     try:
         headers = {"User-Agent": user_agent()}
-        response = session.get(url, headers=headers)
+        response = session.get(url, headers=headers, timeout=10)
         return {
             "status": response.status_code,
             "response": response.text
