@@ -1,6 +1,7 @@
 import requests
 import json
 import time
+import os
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from confluent_kafka import Producer
@@ -8,7 +9,7 @@ from confluent_kafka.admin import AdminClient, NewTopic
 
 BOOTSTRAP_SERVER = 'localhost:9092'
 CLIENT_ID        = 'python-producer'
-TOPIC            = 'scrapping'
+TOPIC            = 'scrapping_1'
 
 def main():
     url = "https://www.bbcnewsd73hkzno2ini43t4gblxvycyac5aw4gnv7t2rccijh7745uqd.onion/news"
@@ -26,7 +27,7 @@ def check_active_link(url, session):
         soup = BeautifulSoup(response["response"], 'lxml')
         process_get_link(soup, url, session)
     else:
-        print("The link is not active.")
+        print("The base url is not active.")
 
 def process_get_link(soup, base_url, session):
     links = []
@@ -40,11 +41,14 @@ def process_get_link(soup, base_url, session):
     
 def process_scrapping(links, session):
     producer = config_kafka()
-    data = []
-    
+    data = load_existing_data("output_multi.json")
     check_topic()
     
     for link in links:
+        if any(entry['url'] == link for entry in data):
+            print(f"Skipping duplicate link: {link}")
+            continue
+        
         response = process_check_link(link, session)
         if response["status"] == 200:
             soup = BeautifulSoup(response["response"], "lxml")
@@ -72,11 +76,18 @@ def process_scrapping(links, session):
             }
             
             data.append(result)
+            send_to_kafka(producer, result)
         else:
-            print("The link is not active.")
+            print("The base path is not active.")
 
-    # save_to_file_json(data, "output_multi.json")  
-    send_to_kafka(producer, data)
+    save_to_file_json(data, "output_multi.json")  
+    
+def load_existing_data(file_path):
+    existing_data = []
+    if os.path.exists(file_path):
+        with open(file_path, 'r', encoding='utf-8') as file:
+            existing_data = json.load(file)
+    return existing_data
 
 def check_topic():
     admin_client = AdminClient({'bootstrap.servers': BOOTSTRAP_SERVER})
@@ -93,10 +104,8 @@ def check_topic():
 def send_to_kafka(producer, data):
     message_value = json.dumps(data)
     producer.produce(TOPIC, value=message_value, callback=delivery_report)
-    print("send data successfully")
     producer.flush()
 
-     
 def delivery_report(err, msg):
     if err is not None:
         print('Message delivery failed: {}'.format(err))
@@ -118,14 +127,22 @@ def save_to_file_json(data, file_name):
 def process_check_link(url, session):
     try:
         headers = {"User-Agent": user_agent()}
-        response = session.get(url, headers=headers, timeout=10)
+        response = session.get(url, headers=headers, timeout=20)
         return {
             "status": response.status_code,
             "response": response.text
         }
-        
+    except requests.exceptions.ReadTimeout:
+        return {
+            "status" : 408,
+            "response": "Timeout"
+        }
     except requests.ConnectionError:
-        return False
+        return {
+            "status": 599,
+            "response": "Connection Error"
+        }
+   
 
 def user_agent():
     return "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
