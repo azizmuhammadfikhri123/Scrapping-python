@@ -2,6 +2,8 @@ import requests
 import json
 import time
 import os
+import logging
+from datetime import datetime
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from confluent_kafka import Producer
@@ -9,7 +11,7 @@ from confluent_kafka.admin import AdminClient, NewTopic
 
 BOOTSTRAP_SERVER = 'localhost:9092'
 CLIENT_ID        = 'python-producer'
-TOPIC            = 'scrapping_1'
+TOPIC            = 'scrapping_news'
 
 def main():
     url = "https://www.bbcnewsd73hkzno2ini43t4gblxvycyac5aw4gnv7t2rccijh7745uqd.onion/news"
@@ -31,22 +33,34 @@ def check_active_link(url, session):
 
 def process_get_link(soup, base_url, session):
     links = []
-    sites = soup.find_all('a',  class_= 'gs-c-promo-heading gs-o-faux-block-link__overlay-link gel-pica-bold nw-o-link-split__anchor')
-    for link in sites[0:10]:
-        path = link['href']
+    for link in  soup.select('a[href*="/news"]'):
+        path  = link['href']
         full_url = urljoin(base_url, path)
         links.append(full_url)
     
+    # print(links)
     process_scrapping(links, session)
     
+def setup_logging():
+    logging.basicConfig(filename='/home/be-azizmuhammadf/Documents/BELAJAR/PYTHON/scrapping_news/scraper_log.txt', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def log(message, level='INFO'):
+    if level == 'INFO':
+        logging.info(message)
+    elif level == 'WARNING':
+        logging.warning(message)
+    elif level == 'ERROR':
+        logging.error(message)
+
 def process_scrapping(links, session):
+    setup_logging()
     producer = config_kafka()
     data = load_existing_data("output_multi.json")
     check_topic()
     
     for link in links:
         if any(entry['url'] == link for entry in data):
-            print(f"Skipping duplicate link: {link}")
+            log(f"Skipping duplicate link: {link}")
             continue
         
         response = process_check_link(link, session)
@@ -77,10 +91,11 @@ def process_scrapping(links, session):
             
             data.append(result)
             send_to_kafka(producer, result)
+            log(f"Successfully processed link: {link}", level='INFO')
         else:
-            print("The base path is not active.")
+            log("The base path is not active.", level='ERROR')
 
-    save_to_file_json(data, "output_multi.json")  
+    save_to_file_json(data, "output_multi.json")
     
 def load_existing_data(file_path):
     existing_data = []
@@ -142,7 +157,6 @@ def process_check_link(url, session):
             "status": 599,
             "response": "Connection Error"
         }
-   
 
 def user_agent():
     return "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
