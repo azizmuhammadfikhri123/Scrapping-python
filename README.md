@@ -3,6 +3,8 @@
 ### Persyaratan
   - Pastikan sudah install python
   - Pastikan install semua library dan sesuaikan
+  - pastikan sudah install kafka
+  - sebelum menjalankan program, jalankan terlebih dahulu kafkanya
     
 ### Langkah 1: Clone Repositori
   - git clone https://github.com/azizmuhammadfikhri123/Scrapping-python.git
