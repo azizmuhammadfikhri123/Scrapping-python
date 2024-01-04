@@ -42,7 +42,7 @@ def process_get_link(soup, base_url, session):
     process_scrapping(links, session)
     
 def setup_logging():
-    logging.basicConfig(filename='/home/be-azizmuhammadf/Documents/BELAJAR/PYTHON/scrapping_news/scraper_log.txt', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(filename='/home/be-azizmuhammadf/Documents/BELAJAR/PYTHON/scrapping_news/scraper_log.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def log(message, level='INFO'):
     if level == 'INFO':
