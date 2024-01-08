@@ -17,5 +17,5 @@
    - Sesuaikan path python dan path file python yang ingin di jalankan
    - setelah itu save
 
-### Program akan berjalan setiap menit sekali dan akan menghasilkan file scraper_log.txt
+### Program akan berjalan setiap menit sekali dan akan menghasilkan file scraper_log.log
   
